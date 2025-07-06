@@ -3,7 +3,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using UniRx;
+using Cysharp.Threading.Tasks;
+using System.Threading.Tasks;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -17,16 +21,24 @@ public class GameManager : MonoBehaviour
 
     [Header("Config Settings")]
     [SerializeField] private int _levels = 30;
-    [SerializeField][Range(10, 100)] private int _enemiesPerLevel = 100;
-    [SerializeField][Range(1, 20)] private int _dropsPerEnemy = 3;
+    [SerializeField][Range(10, 100)] private int _enemiesPerLevel = 50;
+    [SerializeField][Range(1, 20)] private int _dropsPerEnemy = 5;
 
     private string ConfigPath => Path.Combine(Application.streamingAssetsPath, "game_config.json");
+    private CancellationTokenSource _cts;
+    private System.Random _random = new System.Random();
 
     private void Start()
     {
         SetupFpsMonitor();
         SetupGenerateButton();
         CheckConfigExists();
+    }
+
+    private void OnDestroy()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
     }
 
     private void SetupFpsMonitor()
@@ -39,8 +51,104 @@ public class GameManager : MonoBehaviour
     private void SetupGenerateButton()
     {
         _generateButton.OnClickAsObservable()
-            .Subscribe(_ => StartCoroutine(GenerateConfigCoroutine()))
+            .Subscribe(_ => GenerateConfig().Forget())
             .AddTo(this);
+    }
+
+    private async UniTaskVoid GenerateConfig()
+    {
+        _generateButton.interactable = false;
+        _cts = new CancellationTokenSource();
+        ResetUI();
+
+        try
+        {
+            var config = await GenerateConfigDataAsync(_cts.Token);
+            await SaveConfigAsync(config, _cts.Token);
+            CompleteGeneration();
+        }
+        catch (OperationCanceledException)
+        {
+            _statusText.text = "Generation canceled";
+        }
+        catch (Exception e)
+        {
+            _statusText.text = $"Error: {e.Message}";
+            Debug.LogError(e);
+        }
+        finally
+        {
+            _generateButton.interactable = true;
+            _cts?.Dispose();
+            _cts = null;
+        }
+    }
+
+    private async UniTask<GameConfig> GenerateConfigDataAsync(CancellationToken ct)
+    {
+        var config = new GameConfig
+        {
+            gameTitle = "Generated Config",
+            levels = new GameConfig.Level[_levels]
+        };
+
+        var progress = new Progress<float>(p =>
+        {
+            _progressBar.value = p;
+            _statusText.text = $"Generating... {p:P0}";
+        });
+
+        await Task.Run(() =>
+        {
+            for (int i = 0; i < _levels; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                config.levels[i] = CreateLevel(i);
+                ((IProgress<float>)progress).Report((float)i / _levels);
+            }
+            return config;
+        }, ct);
+
+        return config;
+    }
+
+    private GameConfig.Level CreateLevel(int levelIndex)
+    {
+        return new GameConfig.Level
+        {
+            id = levelIndex,
+            name = $"Level_{levelIndex}",
+            enemies = Enumerable.Range(0, _enemiesPerLevel)
+                .Select(_ => CreateEnemy())
+                .ToArray()
+        };
+    }
+
+    private GameConfig.Enemy CreateEnemy()
+    {
+        return new GameConfig.Enemy
+        {
+            type = $"enemy_{_random.Next(1, 10)}", // Используем System.Random вместо UnityEngine.Random
+            health = _random.Next(30, 100),
+            drops = GenerateRandomDrops()
+        };
+    }
+
+    private string[] GenerateRandomDrops()
+    {
+        return Enumerable.Range(0, _dropsPerEnemy)
+            .Select(_ => $"item_{_random.Next(1, 100)}")
+            .ToArray();
+    }
+
+    private async UniTask SaveConfigAsync(GameConfig config, CancellationToken ct)
+    {
+        string json = JsonUtility.ToJson(config, true);
+
+        await UniTask.SwitchToThreadPool();
+        Directory.CreateDirectory(Application.streamingAssetsPath);
+        await File.WriteAllTextAsync(ConfigPath, json, ct);
+        await UniTask.SwitchToMainThread();
     }
 
     private void UpdateFps()
@@ -62,85 +170,16 @@ public class GameManager : MonoBehaviour
         _statusText.text = File.Exists(ConfigPath) ? "Config ready" : "No config found";
     }
 
-    private System.Collections.IEnumerator GenerateConfigCoroutine()
-    {
-        _generateButton.interactable = false;
-        ResetUI();
-
-        yield return StartCoroutine(CreateConfigFile());
-
-        CompleteGeneration();
-        _generateButton.interactable = true;
-    }
-
     private void ResetUI()
     {
         _statusText.text = "Generating...";
         _progressBar.value = 0;
     }
 
-    private System.Collections.IEnumerator CreateConfigFile()
-    {
-        var config = new GameConfig
-        {
-            gameTitle = "Dynamic Game Config",
-            levels = new GameConfig.Level[_levels]
-        };
-
-        for (int i = 0; i < _levels; i++)
-        {
-            config.levels[i] = CreateLevel(i);
-            UpdateProgress(i);
-            yield return null;
-        }
-
-        SaveConfigToFile(config);
-    }
-
-    private GameConfig.Level CreateLevel(int levelIndex)
-    {
-        return new GameConfig.Level
-        {
-            id = levelIndex,
-            name = $"Level_{levelIndex}",
-            enemies = Enumerable.Range(0, _enemiesPerLevel)
-                .Select(j => CreateEnemy())
-                .ToArray()
-        };
-    }
-
-    private GameConfig.Enemy CreateEnemy()
-    {
-        return new GameConfig.Enemy
-        {
-            type = $"enemy_{UnityEngine.Random.Range(1, 10)}",
-            health = UnityEngine.Random.Range(30, 100),
-            drops = GenerateRandomDrops()
-        };
-    }
-
-    private string[] GenerateRandomDrops()
-    {
-        return Enumerable.Range(0, _dropsPerEnemy)
-            .Select(_ => $"item_{UnityEngine.Random.Range(1, 100)}")
-            .ToArray();
-    }
-
-    private void UpdateProgress(int currentLevel)
-    {
-        _progressBar.value = (float)currentLevel / _levels;
-        _statusText.text = $"Generating... {_progressBar.value:P0}";
-    }
-
-    private void SaveConfigToFile(GameConfig config)
-    {
-        Directory.CreateDirectory(Application.streamingAssetsPath);
-        File.WriteAllText(ConfigPath, JsonUtility.ToJson(config, true));
-    }
-
     private void CompleteGeneration()
     {
         _statusText.text = "Generation complete!";
         _progressBar.value = 1f;
+
     }
 }

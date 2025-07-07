@@ -84,12 +84,12 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    private async UniTask<GameConfig> GenerateConfigDataAsync(CancellationToken ct)
+    private async UniTask<AsyncGameConfig> GenerateConfigDataAsync(CancellationToken ct)
     {
-        var config = new GameConfig
+        var config = new AsyncGameConfig
         {
             gameTitle = "Generated Config",
-            levels = new GameConfig.Level[_levels]
+            levels = new AsyncGameConfig.Level[_levels]
         };
 
         var progress = new Progress<float>(p =>
@@ -112,9 +112,9 @@ public class GameManager : MonoBehaviour
         return config;
     }
 
-    private GameConfig.Level CreateLevel(int levelIndex)
+    private AsyncGameConfig.Level CreateLevel(int levelIndex)
     {
-        return new GameConfig.Level
+        return new AsyncGameConfig.Level
         {
             id = levelIndex,
             name = $"Level_{levelIndex}",
@@ -124,11 +124,11 @@ public class GameManager : MonoBehaviour
         };
     }
 
-    private GameConfig.Enemy CreateEnemy()
+    private AsyncGameConfig.Enemy CreateEnemy()
     {
-        return new GameConfig.Enemy
+        return new AsyncGameConfig.Enemy
         {
-            type = $"enemy_{_random.Next(1, 10)}", // Используем System.Random вместо UnityEngine.Random
+            type = $"enemy_{_random.Next(1, 10)}", 
             health = _random.Next(30, 100),
             drops = GenerateRandomDrops()
         };
@@ -141,7 +141,7 @@ public class GameManager : MonoBehaviour
             .ToArray();
     }
 
-    private async UniTask SaveConfigAsync(GameConfig config, CancellationToken ct)
+    private async UniTask SaveConfigAsync(AsyncGameConfig config, CancellationToken ct)
     {
         string json = JsonUtility.ToJson(config, true);
 

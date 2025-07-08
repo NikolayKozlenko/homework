@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 
 
-
 [CreateAssetMenu(fileName = "EditGameConfig", menuName = "Game/Config")]
 public class EditGameConfig : ScriptableObject
 {

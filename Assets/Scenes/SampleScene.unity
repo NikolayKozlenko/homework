@@ -3707,7 +3707,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 61c3abbced062b445852605030be4a38, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  currentConfig: {fileID: 11400000, guid: 794bef7ad489ae04c9f3e4af6af1dc98, type: 2}
+  currentConfig: {fileID: 11400000, guid: 5b6c02581ce33d94c8e3f3f2bbb859aa, type: 2}
   configDisplayText: {fileID: 1565522844}
 --- !u!1001 &1550277144
 PrefabInstance:
@@ -3864,11 +3864,11 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: '<b>HardGameConfig</b>
+  m_Text: '<b>MediumGameConfig</b>
 
-    Start Level: 5
+    Start Level: 3
 
-    Difficulty: 5x
+    Difficulty: 3x
 
 '
 --- !u!222 &1565522845

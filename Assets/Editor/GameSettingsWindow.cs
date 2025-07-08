@@ -10,7 +10,7 @@ public class GameSettingsWindow : EditorWindow
     private Editor configEditor;
     private bool showConfigEditor = false;
 
-    [MenuItem("Window/Game Settings Window")]
+    [MenuItem("Tools/Game Settings")]
     public static void ShowWindow()
     {
         GetWindow<GameSettingsWindow>("Game Settings");
@@ -30,6 +30,7 @@ public class GameSettingsWindow : EditorWindow
                 AssetDatabase.GUIDToAssetPath(guid)))
             .ToList();
 
+        // Выбор конфига
         EditorGUI.BeginChangeCheck();
         selectedConfig = (EditGameConfig)EditorGUILayout.ObjectField(
             "Selected Config",
@@ -43,6 +44,7 @@ public class GameSettingsWindow : EditorWindow
             DestroyImmediate(configEditor);
         }
 
+        // Список всех конфигов
         scrollPos = EditorGUILayout.BeginScrollView(scrollPos, GUILayout.Height(150));
         foreach (var config in configs)
         {
@@ -50,7 +52,7 @@ public class GameSettingsWindow : EditorWindow
 
             EditorGUILayout.LabelField(config.configName);
 
-            if (GUILayout.Button("Select", GUILayout.Width(80)))
+            if (GUILayout.Button("Select", GUILayout.Width(60)))
             {
                 selectedConfig = config;
                 showConfigEditor = false;
@@ -58,7 +60,7 @@ public class GameSettingsWindow : EditorWindow
                 GUI.FocusControl(null);
             }
 
-            if (GUILayout.Button("Edit", GUILayout.Width(80)))
+            if (GUILayout.Button("Edit", GUILayout.Width(60)))
             {
                 selectedConfig = config;
                 showConfigEditor = true;
@@ -67,10 +69,30 @@ public class GameSettingsWindow : EditorWindow
                 GUI.FocusControl(null);
             }
 
+            if (GUILayout.Button("Delete", GUILayout.Width(60)))
+            {
+                if (EditorUtility.DisplayDialog("Delete Config",
+                    $"Are you sure you want to delete '{config.configName}'?",
+                    "Delete", "Cancel"))
+                {
+                    string path = AssetDatabase.GetAssetPath(config);
+                    AssetDatabase.DeleteAsset(path);
+                    AssetDatabase.SaveAssets();
+                    if (selectedConfig == config)
+                    {
+                        selectedConfig = null;
+                        showConfigEditor = false;
+                        DestroyImmediate(configEditor);
+                    }
+                    GUIUtility.ExitGUI(); // Выход из GUI из-за изменения коллекции
+                }
+            }
+
             EditorGUILayout.EndHorizontal();
         }
         EditorGUILayout.EndScrollView();
 
+        // Отображение редактора конфига
         if (showConfigEditor && selectedConfig != null)
         {
             EditorGUILayout.Space();
@@ -84,6 +106,7 @@ public class GameSettingsWindow : EditorWindow
             configEditor.OnInspectorGUI();
         }
 
+        // Кнопки управления
         EditorGUILayout.Space();
         EditorGUILayout.BeginHorizontal();
 
@@ -125,8 +148,7 @@ public class GameSettingsWindow : EditorWindow
     private void CreateNewConfig()
     {
         var config = ScriptableObject.CreateInstance<EditGameConfig>();
-        string path = "Assets/Resources/EditGameConfig_New.asset";
-        path = AssetDatabase.GenerateUniqueAssetPath(path);
+        string path = AssetDatabase.GenerateUniqueAssetPath("Assets/Resources/EditGameConfig.asset");
 
         AssetDatabase.CreateAsset(config, path);
         AssetDatabase.SaveAssets();

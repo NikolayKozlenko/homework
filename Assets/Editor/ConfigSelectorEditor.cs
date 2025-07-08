@@ -15,7 +15,7 @@ public class ConfigSelectorEditor : Editor
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Quick Access", EditorStyles.boldLabel);
 
-        if (GUILayout.Button("Open Settings Window"))
+        if (GUILayout.Button("Open Game Settings"))
         {
             GameSettingsWindow.ShowWindow();
         }
